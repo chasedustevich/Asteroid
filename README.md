@@ -50,8 +50,11 @@
 Type `make package` in the project directory to produce a rootless `.deb` package (`iphoneos-arm64`).
 
 ## Credits
-### Creators
-[the casle](https://twitter.com/the_casle) & [MidnightChips](https://twitter.com/midnightchip)
+### Creators & License
+[the casle](https://twitter.com/the_casle) & [MidnightChips](https://twitter.com/midnightchip) — Original creators of Asteroid. Licensed under GPL-3.0 ([LICENSE.md](LICENSE.md)).
+
+### iOS 15–16+ Rootless Update
+Modernized for iOS 15–16+ rootless jailbreaks (`v4.0.0`) by [Chase Dustevich](https://github.com/chasedustevich) with assistance from **Antigravity** (Google DeepMind).
 ### Inspirations
 [meteor](https://cydia.saurik.com/package/com.nin9tyfour.meteor/) by [nin9tyfour](https://twitter.com/nin9tyfour)
 
