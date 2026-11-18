@@ -1,6 +1,6 @@
 #import <CoreLocation/CoreLocation.h>
 
-@interface WFLocation
+@interface WFLocation : NSObject
 
 @end
 
@@ -44,7 +44,7 @@
 -(void)forceLocationUpdate;
 @end
 
-@interface WeatherPreferences
+@interface WeatherPreferences : NSObject
 + (id)sharedPreferences;
 - (id)localWeatherCity;
 -(int)loadActiveCity;
@@ -58,7 +58,7 @@
 @property (assign,setter=setLocalWeatherEnabled:,getter=isLocalWeatherEnabled,nonatomic) BOOL isLocalWeatherEnabled; 
 @end
 
-@interface TWCLocationUpdater
+@interface TWCLocationUpdater : NSObject
 +(id)sharedLocationUpdater;
 -(void)updateWeatherForLocation:(id)arg1 city:(id)arg2 ;
 @end

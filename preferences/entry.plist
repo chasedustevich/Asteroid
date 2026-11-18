@@ -9,7 +9,7 @@
 			<key>cell</key>
 			<string>PSLinkCell</string>
 			<key>detail</key>
-			<string>CSPListController</string>
+			<string>LWPPreferenceController</string>
 			<key>icon</key>
 			<string>icon.png</string>
 			<key>isController</key>
@@ -20,10 +20,6 @@
 			<real>36</real>
 			<key>secondaryFontSize</key>
 			<real>17</real>
-			<key>primaryColor</key>
-			<string>000000</string>
-			<key>secondaryColor</key>
-			<string>#5c5555</string>
 			<key>packageID</key>
 			<string>com.midnightchips.asteroid</string>
 			<key>repo</key>

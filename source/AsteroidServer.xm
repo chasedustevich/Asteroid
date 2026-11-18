@@ -1,101 +1,120 @@
 #include <AppSupport/CPDistributedMessagingCenter.h>
 #import "AWeatherModel.h"
-#import <rocketbootstrap/rocketbootstrap.h>
+#import "LWPProvider.h"
+#import <dlfcn.h>
 
 @interface AsteroidServer : NSObject
 @property (nonatomic, retain) AWeatherModel *weatherModel;
 @end
 
-@implementation AsteroidServer 
-
-+ (void)load {
-	[self sharedInstance];
-}
+@implementation AsteroidServer
 
 + (id)sharedInstance {
-	static dispatch_once_t once = 0;
-	__strong static id sharedInstance = nil;
-	dispatch_once(&once, ^{
-		sharedInstance = [[self alloc] init];
-	});
-	return sharedInstance;
+    static dispatch_once_t once = 0;
+    __strong static id sharedInstance = nil;
+    dispatch_once(&once, ^{
+        sharedInstance = [[self alloc] init];
+    });
+    return sharedInstance;
 }
 
 - (id)init {
-	if ((self = [super init])) {
-		self.weatherModel = [%c(AWeatherModel) sharedInstance];
-		// ...
-		// Center name must be unique, recommend using application identifier.
-		CPDistributedMessagingCenter * messagingCenter = [CPDistributedMessagingCenter centerNamed:@"com.midnightchips.AsteroidServer"];
-		rocketbootstrap_distributedmessagingcenter_apply(messagingCenter);
-		[messagingCenter runServerOnCurrentThread];
+    if ((self = [super init])) {
+        self.weatherModel = [%c(AWeatherModel) sharedInstance];
 
-		// Register Messages
-		[messagingCenter registerForMessageName:@"weatherIcon" target:self selector:@selector(returnWeatherLogo)];
-		[messagingCenter registerForMessageName:@"weatherTemp" target:self selector:@selector(returnWeatherTemp)];
-		[messagingCenter registerForMessageName:@"weatherItems" target:self selector:@selector(returnWeatherItems)];
-        [messagingCenter registerForMessageName:@"cityIndex" target:self selector:@selector(returnCurrentIndex)];
-        [messagingCenter registerForMessageName:@"returnCityIndex" target:self selector:@selector(saveCurrentIndexName:withUserInfo:)];
+        // Only start CPDistributedMessagingCenter if RocketBootstrap is loaded
+        void (*rb_apply)(id) = (void (*)(id))dlsym(RTLD_DEFAULT, "rocketbootstrap_distributedmessagingcenter_apply");
+        if (rb_apply) {
+            @try {
+                CPDistributedMessagingCenter *messagingCenter = [CPDistributedMessagingCenter centerNamed:@"com.midnightchips.AsteroidServer"];
+                rb_apply(messagingCenter);
+                [messagingCenter runServerOnCurrentThread];
 
-	}
-	return self;
+                [messagingCenter registerForMessageName:@"weatherIcon" target:self selector:@selector(returnWeatherLogo)];
+                [messagingCenter registerForMessageName:@"weatherTemp" target:self selector:@selector(returnWeatherTemp)];
+                [messagingCenter registerForMessageName:@"weatherItems" target:self selector:@selector(returnWeatherItems)];
+                [messagingCenter registerForMessageName:@"cityIndex" target:self selector:@selector(returnCurrentIndex)];
+                [messagingCenter registerForMessageName:@"returnCityIndex" target:self selector:@selector(saveCurrentIndexName:withUserInfo:)];
+            } @catch (NSException *e) {
+                NSLog(@"[AsteroidServer] Warning: Could not initialize CPDistributedMessagingCenter: %@", e);
+            }
+        }
+
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(onWeatherUpdate:) name:@"weatherTimerUpdate" object:nil];
+    }
+    return self;
 }
 
-
--(NSDictionary *)returnWeatherItems{
-	NSLog(@"ASTEROIDSERVERCALLED");
-	NSMutableDictionary *sendItems= [[NSMutableDictionary alloc]init];
-	sendItems[@"temp"] = [self returnWeatherTempString];
-	sendItems[@"image"] = [self returnWeatherLogoData];
-	NSLog(@"ASTEROIDSERVERCALLED %@", sendItems);
-	return sendItems;
-}
--(NSData *)returnWeatherLogoData{
-	NSData *imageData = UIImagePNGRepresentation([self.weatherModel glyphWithOption:ConditionOptionDefault]);
-	return imageData;
+- (void)onWeatherUpdate:(NSNotification *)note {
+    @try {
+        NSString *temp = [self returnWeatherTempString];
+        NSData *iconData = [self returnWeatherLogoData];
+        if (temp) [prefs setObject:temp forKey:@"cachedWeatherTemp"];
+        if (iconData) [prefs setObject:iconData forKey:@"cachedWeatherIconData"];
+        [prefs save];
+    } @catch (NSException *e) {}
 }
 
--(UIImage *)returnWeatherLogoImage{
-	return [self.weatherModel glyphWithOption:ConditionOptionDefault];
+- (NSDictionary *)returnWeatherItems {
+    NSMutableDictionary *sendItems = [[NSMutableDictionary alloc] init];
+    NSString *temp = [self returnWeatherTempString];
+    NSData *data = [self returnWeatherLogoData];
+    if (temp) sendItems[@"temp"] = temp;
+    if (data) sendItems[@"image"] = data;
+    return sendItems;
 }
 
--(NSString *)returnWeatherTempString{
-	return [self.weatherModel localeTemperature];
+- (NSData *)returnWeatherLogoData {
+    UIImage *glyph = [self.weatherModel glyphWithOption:ConditionOptionDefault];
+    if (glyph) {
+        return UIImagePNGRepresentation(glyph);
+    }
+    return nil;
 }
 
--(NSDictionary *)returnWeatherLogo{
-	NSMutableDictionary *sendImage = [[NSMutableDictionary alloc]init];
-	//sendImage[@"image"] = [[self.weatherModel glyphWithOption:ConditionOptionDefault] copy];
-	NSData *imageData = UIImagePNGRepresentation([self.weatherModel glyphWithOption:ConditionOptionDefault]);
-	NSLog(@"ASTEROIDLOGODATA %@", imageData);
-	sendImage[@"image"] = imageData;
-	return sendImage;
+- (UIImage *)returnWeatherLogoImage {
+    return [self.weatherModel glyphWithOption:ConditionOptionDefault];
 }
 
--(NSDictionary *)returnWeatherTemp{
-	HBLogDebug(@"returningWEatherTemp");
-	NSMutableDictionary *sendTemp= [[NSMutableDictionary alloc]init];
-	sendTemp[@"temp"] = [self.weatherModel localeTemperature];
-	HBLogDebug(@"returningWEatherTemp %@", sendTemp);
-	return sendTemp;
+- (NSString *)returnWeatherTempString {
+    return [self.weatherModel localeTemperature] ?: @"--";
 }
 
--(NSDictionary *) returnCurrentIndex{
-    NSMutableDictionary *sendIndex = [[NSMutableDictionary alloc]init];
+- (NSDictionary *)returnWeatherLogo {
+    NSMutableDictionary *sendImage = [[NSMutableDictionary alloc] init];
+    NSData *imageData = [self returnWeatherLogoData];
+    if (imageData) {
+        sendImage[@"image"] = imageData;
+    }
+    return sendImage;
+}
+
+- (NSDictionary *)returnWeatherTemp {
+    NSMutableDictionary *sendTemp = [[NSMutableDictionary alloc] init];
+    NSString *temp = [self returnWeatherTempString];
+    if (temp) {
+        sendTemp[@"temp"] = temp;
+    }
+    return sendTemp;
+}
+
+- (NSDictionary *)returnCurrentIndex {
+    NSMutableDictionary *sendIndex = [[NSMutableDictionary alloc] init];
     sendIndex[@"index"] = @([prefs intForKey:@"astDefaultIndex"]);
     return sendIndex;
 }
 
--(void) saveCurrentIndexName:(NSString *)name withUserInfo:(NSDictionary *)indexDict{
+- (void)saveCurrentIndexName:(NSString *)name withUserInfo:(NSDictionary *)indexDict {
     NSNumber *indexValue = indexDict[@"index"];
-    [prefs setObject:indexValue forKey:@"astDefaultIndex"];
-    [prefs save];
+    if (indexValue) {
+        [prefs setObject:indexValue forKey:@"astDefaultIndex"];
+        [prefs saveAndPostNotification];
+    }
 }
 @end
 
-%ctor{
-    if([prefs boolForKey:@"kLWPEnabled"]){
-        HBLogDebug(@"Loaded");
-        [AsteroidServer load];
+%ctor {
+    if ([[NSBundle mainBundle].bundleIdentifier isEqualToString:@"com.apple.springboard"] && [prefs boolForKey:@"kLWPEnabled"]) {
+        [AsteroidServer sharedInstance];
     }
 }

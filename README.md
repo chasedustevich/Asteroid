@@ -43,13 +43,11 @@
 ## Get Asteroid
 [![Available on Dynastic Repo](https://assets.dynastic.co/brand/repo/img/Available%20on%20Dynastic%20Repo.png)](https://repo.dynastic.co/package/com.midnightchips.asteroid)
 
-## Compiling
+## Compiling (iOS 15–16+ Rootless)
 *Dependencies*
-- [Theos](https://github.com/theos/theos)
-- [libCSColorPicker](https://github.com/CreatureSurvive/libCSColorPicker)
-- [libCSPreferences](https://github.com/CreatureSurvive/libCSPreferences) 
+- [Theos](https://github.com/theos/theos) with an iOS 15+ SDK
 
-Type `make package` in the project directory.
+Type `make package` in the project directory to produce a rootless `.deb` package (`iphoneos-arm64`).
 
 ## Credits
 ### Creators

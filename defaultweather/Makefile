@@ -2,9 +2,10 @@ include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = defaultweather
 defaultweather_FILES = $(wildcard *.xm *.m) ../source/LWPProvider.m
-$(TWEAK_NAME)_LIBRARIES = rocketbootstrap
-$(TWEAK_NAME)_PRIVATE_FRAMEWORKS = AppSupport
-defaultweather_LDFLAGS += -lCSPreferencesProvider
+defaultweather_FRAMEWORKS = UIKit CoreGraphics
+defaultweather_PRIVATE_FRAMEWORKS = AppSupport Weather
+defaultweather_CFLAGS += -fobjc-arc -DLWP_PROVIDER_CLASS_NAME=ASTDefaultWeatherLWPProvider -I$(THEOS_PROJECT_DIR)/../source -Wno-deprecated-declarations -Wno-incompatible-pointer-types
+
 include $(THEOS_MAKE_PATH)/tweak.mk
 
 after-install::

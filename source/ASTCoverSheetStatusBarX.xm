@@ -1,69 +1,80 @@
 #import "UIImage+ScaledImage.h"
 #import "AWeatherModel.h"
+
 @interface _UIStatusBarItem : NSObject
-@end 
+@end
 
 @interface _UIStatusBarCellularItem : _UIStatusBarItem
-@end 
+@end
 
 @interface _UIStatusBarStringView : UILabel
-@property (nonatomic,copy) NSString * originalText; 
+@property (nonatomic, copy) NSString *originalText;
 @property (nonatomic, assign) BOOL isServiceView;
--(void)generateWeatherView;
-@end 
+- (void)generateWeatherView;
+@end
 
 @interface SBStatusBarStateAggregator : NSObject
-+(id)sharedInstance;
--(void)_updateServiceItem;
-@end 
++ (id)sharedInstance;
+- (void)_updateServiceItem;
+@end
 
 %hook _UIStatusBarStringView
 %property (nonatomic, assign) BOOL isServiceView;
--(void)setText:(id)arg1{
-    %orig(@"");
-	if(self.isServiceView){
-		[self generateWeatherView];
-	}else{
-		%orig;
-	}
+- (void)setText:(id)arg1 {
+    if (self.isServiceView) {
+        %orig(@"");
+        [self generateWeatherView];
+    } else {
+        %orig;
+    }
 }
-%new 
--(void)generateWeatherView{
-	AWeatherModel *weatherModel = [%c(AWeatherModel) sharedInstance];
-	NSTextAttachment *weatherAttach = [[NSTextAttachment alloc] init];
-	UIImage *weatherImage = [weatherModel glyphWithOption:ConditionOptionDefault];
-	double aspect = weatherImage.size.width / weatherImage.size.height;
-	weatherImage = [weatherImage scaleImageToSize:CGSizeMake(self.font.lineHeight * aspect, self.font.lineHeight)];
-	[weatherAttach setBounds:CGRectMake(0, roundf(self.font.capHeight - weatherImage.size.height)/2.f, weatherImage.size.width, weatherImage.size.height)];
-	weatherImage = [weatherImage imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
-	weatherAttach.image = weatherImage;
-	//Stupid Tint workaround
-    NSMutableAttributedString *imageFixText = [[NSMutableAttributedString alloc] initWithAttributedString:[[NSAttributedString alloc] initWithString:@" "]];
-    NSAttributedString *attachmentString = [NSAttributedString attributedStringWithAttachment:weatherAttach];
-	[imageFixText appendAttributedString:attachmentString];
-    [imageFixText addAttribute:NSFontAttributeName value:[UIFont systemFontOfSize:0] range:NSMakeRange(0, imageFixText.length)]; // Put font size 0 to prevent offset
-    [imageFixText appendAttributedString:[[NSAttributedString alloc] initWithString:@""]];
-	//End stupid UIKit workaround
-	NSDictionary *attribs = @{
-                        NSFontAttributeName: self.font
-                        };
-	NSAttributedString *tempString = [[NSAttributedString alloc] initWithString:[weatherModel localeTemperature] attributes:attribs];
-	[imageFixText appendAttributedString:tempString];
-	[self setAttributedText:imageFixText];
-}
-%end 
+%new
+- (void)generateWeatherView {
+    @try {
+        AWeatherModel *weatherModel = [%c(AWeatherModel) sharedInstance];
+        UIImage *weatherImage = [weatherModel glyphWithOption:ConditionOptionDefault];
+        if (!weatherImage || weatherImage.size.height <= 0 || weatherImage.size.width <= 0) return;
 
-%hook _UIStatusBarCellularItem 
--(_UIStatusBarStringView *)serviceNameView{
-	_UIStatusBarStringView *orig = %orig;
-	orig.isServiceView = TRUE;
-	return orig;
-}
-%end 
+        UIFont *font = self.font ?: [UIFont systemFontOfSize:12];
+        double aspect = weatherImage.size.width / weatherImage.size.height;
+        CGFloat lineHeight = font.lineHeight > 0 ? font.lineHeight : 14.0;
+        weatherImage = [weatherImage scaleImageToSize:CGSizeMake(lineHeight * aspect, lineHeight)];
+        if (!weatherImage) return;
 
-%ctor{
-	if([prefs boolForKey:@"enableCoverStatusX"] && [prefs boolForKey:@"kLWPEnabled"]){
-		%init();
-	}
-}
+        NSTextAttachment *weatherAttach = [[NSTextAttachment alloc] init];
+        [weatherAttach setBounds:CGRectMake(0, roundf(font.capHeight - weatherImage.size.height) / 2.f, weatherImage.size.width, weatherImage.size.height)];
+        weatherImage = [weatherImage imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+        weatherAttach.image = weatherImage;
 
+        NSMutableAttributedString *imageFixText = [[NSMutableAttributedString alloc] initWithString:@" "];
+        NSAttributedString *attachmentString = [NSAttributedString attributedStringWithAttachment:weatherAttach];
+        if (attachmentString) {
+            [imageFixText appendAttributedString:attachmentString];
+        }
+        [imageFixText addAttribute:NSFontAttributeName value:[UIFont systemFontOfSize:0] range:NSMakeRange(0, imageFixText.length)];
+
+        NSString *tempStr = [weatherModel localeTemperature] ?: @"--";
+        NSDictionary *attribs = @{ NSFontAttributeName: font };
+        NSAttributedString *tempString = [[NSAttributedString alloc] initWithString:tempStr attributes:attribs];
+        [imageFixText appendAttributedString:tempString];
+        [self setAttributedText:imageFixText];
+    } @catch (NSException *e) {}
+}
+%end
+
+%hook _UIStatusBarCellularItem
+- (_UIStatusBarStringView *)serviceNameView {
+    _UIStatusBarStringView *orig = %orig;
+    if (orig) {
+        orig.isServiceView = YES;
+    }
+    return orig;
+}
+%end
+
+%ctor {
+    if ([[NSBundle mainBundle].bundleIdentifier isEqualToString:@"com.apple.springboard"] &&
+        [prefs boolForKey:@"enableCoverStatusX"] && [prefs boolForKey:@"kLWPEnabled"]) {
+        %init();
+    }
+}

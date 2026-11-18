@@ -1,20 +1,30 @@
 #import "defaultweather.h"
 
+%group LegacyWeatherCard
 %hook WAWeatherCardView
 %property (nonatomic, retain) DefaultWeatherView *defaultWeatherView;
--(void) layoutSubviews{
-    if(!self.isLocalWeatherCity){
+- (void)layoutSubviews {
+    %orig;
+    if (!self.isLocalWeatherCity) {
         [self.defaultWeatherView removeFromSuperview];
         CGRect screenRect = [[UIScreen mainScreen] bounds];
         CGFloat screenWidth = screenRect.size.width;
         self.temperatureLabel.hidden = YES;
         int i = 0;
-        for(NSDictionary *cityInArray in [[[objc_getClass("WeatherPreferences") userDefaultsPersistence]userDefaults] objectForKey:@"Cities"]){
-            if([self.cityName isEqualToString:cityInArray[@"Name"]]){
-                self.defaultWeatherView = [[DefaultWeatherView alloc] initWithFrame:CGRectMake(screenWidth - 70, 20, 100, 50) index:(NSUInteger)i];
-                [self addSubview: self.defaultWeatherView];
-                break;
-            } else i++;
+        Class prefsClass = objc_getClass("WeatherPreferences");
+        id persistence = [prefsClass respondsToSelector:@selector(userDefaultsPersistence)] ? [prefsClass userDefaultsPersistence] : nil;
+        NSDictionary *defaultsDict = [persistence respondsToSelector:@selector(userDefaults)] ? [persistence userDefaults] : nil;
+        NSArray *cities = [defaultsDict isKindOfClass:[NSDictionary class]] ? defaultsDict[@"Cities"] : nil;
+        if ([cities isKindOfClass:[NSArray class]]) {
+            for (NSDictionary *cityInArray in cities) {
+                if ([cityInArray isKindOfClass:[NSDictionary class]] && [self.cityName isEqualToString:cityInArray[@"Name"]]) {
+                    self.defaultWeatherView = [[DefaultWeatherView alloc] initWithFrame:CGRectMake(screenWidth - 70, 20, 100, 50) index:(NSUInteger)i];
+                    [self addSubview:self.defaultWeatherView];
+                    break;
+                } else {
+                    i++;
+                }
+            }
         }
     } else {
         self.defaultWeatherView.hidden = YES;
@@ -22,18 +32,10 @@
     }
 }
 %end
+%end
 
-%ctor{
-    CPDistributedMessagingCenter *messagingCenter;
-    messagingCenter = [CPDistributedMessagingCenter centerNamed:@"com.midnightchips.AsteroidServer"];
-    rocketbootstrap_distributedmessagingcenter_apply(messagingCenter);
-    NSDictionary *serverDict = [messagingCenter sendMessageAndReceiveReplyName:@"cityIndex" userInfo:nil/* optional dictionary */];
-    NSNumber *indexValue = serverDict[@"index"];
-    if(indexValue){
-        [prefs setObject:indexValue forKey:@"astDefaultIndex"];
-    } else if(((NSArray *)[[[objc_getClass("WeatherPreferences") userDefaultsPersistence]userDefaults] objectForKey:@"Cities"]).count > 0){
-         [prefs setObject:@(0) forKey:@"astDefaultIndex"];
+%ctor {
+    if (%c(WAWeatherCardView)) {
+        %init(LegacyWeatherCard);
     }
-    
-    [prefs save];
 }

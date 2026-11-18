@@ -2,6 +2,7 @@
 #import "LiveWeatherView.h"
 #include "notify.h"
 #import "Asteroid.h"
+#import <dlfcn.h>
 
 @interface LiveWeatherView ()
 @property (nonatomic, retain) WUIWeatherConditionBackgroundView *referenceView;
@@ -9,121 +10,140 @@
 @property (nonatomic, retain) UIView *gradientView;
 @property (nonatomic, retain) UIImageView *logo;
 @property (nonatomic, retain) UILabel *temp;
--(CAGradientLayer *) gradientFromWeatherGradient:(WUIGradientLayer *) weatherGradient;
+- (CAGradientLayer *)gradientFromWeatherGradient:(CAGradientLayer *)weatherGradient;
 @end
 
-@implementation LiveWeatherView{
+@implementation LiveWeatherView {
     AWeatherModel *_weatherModel;
 }
 
-static WUIDynamicWeatherBackground* dynamicBG = nil;
-static WUIWeatherCondition* condition = nil;
-
 - (instancetype)initWithFrame:(CGRect)frame {
-    if(self = [super initWithFrame:frame]) {
-        if([prefs boolForKey:@"customAppColor"]) self.backgroundColor = [prefs colorForKey:@"appColor"];
-        else self.backgroundColor = [UIColor clearColor];
+    if (self = [super initWithFrame:frame]) {
+        if ([prefs boolForKey:@"customAppColor"]) {
+            self.backgroundColor = [prefs colorForKey:@"appColor"];
+        } else {
+            self.backgroundColor = [UIColor colorWithRed:0.12 green:0.48 blue:0.88 alpha:1.0];
+        }
         self.clipsToBounds = YES;
-        
+
         _weatherModel = [%c(AWeatherModel) sharedInstance];
-        
+
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(weatherNotification:) name:@"weatherTimerUpdate" object:nil];
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, .5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
-            [self updateWeatherDisplay]; // New instances will need to be setup immediate instead of on notification.
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            [self updateWeatherDisplay];
         });
     }
     return self;
 }
 
--(void) setupTempLabel{
-    self.temp = [[UILabel alloc]init];
-    self.temp.frame = CGRectMake(0, 0, self.frame.size.width, self.frame.size.height);
-    self.temp.textColor = [UIColor whiteColor];
-    self.temp.textAlignment = NSTextAlignmentCenter;
-    [self.temp setCenter:CGPointMake(self.frame.size.width / 1.9, self.frame.size.height / 1.3)];
-    [self addSubview: self.temp];
+- (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
--(void) setupLogoView{
-    self.logo = [[UIImageView alloc] init];
-    self.logo.frame = CGRectMake(0, 0, self.frame.size.width /1.5 , self.frame.size.height /1.5 );
-    self.logo.contentMode = UIViewContentModeScaleAspectFit;
-    [self.logo setCenter:CGPointMake(self.frame.size.width / 2, self.frame.size.height / 2.5)];
-    [self addSubview: self.logo];
-    
-    [self.logo.leftAnchor constraintEqualToAnchor:self.leftAnchor constant:4].active = YES;
-    [self.logo.rightAnchor constraintEqualToAnchor:self.rightAnchor constant:-4].active = YES;
-    [self.logo.topAnchor constraintEqualToAnchor:self.topAnchor constant:4].active = YES;
-    [self.logo.bottomAnchor constraintEqualToAnchor:self.bottomAnchor constant:-4].active = YES;
-}
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    CGFloat w = self.bounds.size.width;
+    CGFloat h = self.bounds.size.height;
+    if (w <= 0 || h <= 0) return;
 
--(void) setupReferenceView{
-    self.referenceView = [[%c(WUIWeatherConditionBackgroundView) alloc] initWithFrame:self.frame];
-    if(![prefs boolForKey:@"appScreenWeather"]){
-        self.referenceView.hidesConditions = YES;
+    if (self.referenceView) {
+        self.referenceView.frame = self.bounds;
     }
-    self.referenceView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    self.referenceView.clipsToBounds = YES;
-    [self addSubview:self.referenceView];
-    [self sendSubviewToBack:self.referenceView];
-    
-    [self.referenceView.leftAnchor constraintEqualToAnchor:self.leftAnchor constant:4].active = YES;
-    [self.referenceView.rightAnchor constraintEqualToAnchor:self.rightAnchor constant:-4].active = YES;
-    [self.referenceView.topAnchor constraintEqualToAnchor:self.topAnchor constant:4].active = YES;
-    [self.referenceView.bottomAnchor constraintEqualToAnchor:self.bottomAnchor constant:-4].active = YES;
-    
-    self.gradientView = [[UIView alloc] initWithFrame:self.frame];
+    if (self.gradientView) {
+        self.gradientView.frame = self.bounds;
+    }
+    if (self.gradientLayer) {
+        self.gradientLayer.frame = self.bounds;
+    }
+    if (self.logo) {
+        CGFloat logoSize = MIN(w, h) * 0.52;
+        self.logo.frame = CGRectMake((w - logoSize) / 2.0, h * 0.12, logoSize, logoSize);
+    }
+    if (self.temp) {
+        self.temp.frame = CGRectMake(2.0, h * 0.62, w - 4.0, h * 0.32);
+    }
+}
+
+- (void)setupTempLabel {
+    self.temp = [[UILabel alloc] initWithFrame:CGRectZero];
+    self.temp.textColor = [UIColor whiteColor];
+    self.temp.font = [UIFont systemFontOfSize:13.0 weight:UIFontWeightSemibold];
+    self.temp.adjustsFontSizeToFitWidth = YES;
+    self.temp.textAlignment = NSTextAlignmentCenter;
+    [self addSubview:self.temp];
+}
+
+- (void)setupLogoView {
+    self.logo = [[UIImageView alloc] initWithFrame:CGRectZero];
+    self.logo.contentMode = UIViewContentModeScaleAspectFit;
+    self.logo.tintColor = [UIColor whiteColor];
+    [self addSubview:self.logo];
+}
+
+- (void)setupReferenceView {
+    Class bgClass = ASTWeatherConditionBackgroundViewClass();
+    if (bgClass) {
+        self.referenceView = [[bgClass alloc] initWithFrame:self.bounds];
+        if (![prefs boolForKey:@"appScreenWeather"]) {
+            self.referenceView.hidesConditions = YES;
+        }
+        self.referenceView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        self.referenceView.clipsToBounds = YES;
+        [self addSubview:self.referenceView];
+        [self sendSubviewToBack:self.referenceView];
+    }
+
+    self.gradientView = [[UIView alloc] initWithFrame:self.bounds];
     self.gradientView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     self.gradientView.clipsToBounds = YES;
     [self addSubview:self.gradientView];
     [self sendSubviewToBack:self.gradientView];
-    
-    [self.gradientView.leftAnchor constraintEqualToAnchor:self.leftAnchor constant:4].active = YES;
-    [self.gradientView.rightAnchor constraintEqualToAnchor:self.rightAnchor constant:-4].active = YES;
-    [self.gradientView.topAnchor constraintEqualToAnchor:self.topAnchor constant:4].active = YES;
-    [self.gradientView.bottomAnchor constraintEqualToAnchor:self.bottomAnchor constant:-4].active = YES;
 }
 
--(void) weatherNotification: (NSNotification *) notification{
+- (void)weatherNotification:(NSNotification *)notification {
     [self updateWeatherDisplay];
-    
 }
 
--(void)updateWeatherDisplay{    
-    if([prefs boolForKey:@"appIcon"]){
-        if(!self.isSetup){
+- (void)updateWeatherDisplay {
+    if ([prefs boolForKey:@"appIcon"]) {
+        if (!self.isSetup) {
             [self setupTempLabel];
             [self setupLogoView];
-            if([prefs boolForKey:@"appScreenWeatherBackground"]) [self setupReferenceView];
+            if ([prefs boolForKey:@"appScreenWeatherBackground"]) {
+                [self setupReferenceView];
+            }
             self.setup = YES;
+            [self setNeedsLayout];
         }
-        
-        self.temp.text = [_weatherModel localeTemperature];
-        [self.temp layoutSubviews];
-        
-        if(_weatherModel.isPopulated){
-            UIImage *icon;
-            icon = [_weatherModel glyphWithOption:ConditionOptionWhite];
+
+        self.temp.text = [_weatherModel localeTemperature] ?: @"--";
+
+        if (_weatherModel.isPopulated) {
+            UIImage *icon = [_weatherModel glyphWithOption:ConditionOptionWhite];
             self.logo.image = icon;
-            [self.logo layoutSubviews];
-            [self layoutSubviews];
         }
-        
-        if([prefs boolForKey:@"appScreenWeatherBackground"] && _weatherModel.isPopulated){
+
+        if ([prefs boolForKey:@"appScreenWeatherBackground"] && _weatherModel.isPopulated && self.referenceView) {
             self.referenceView.background.hidesBackground = NO;
             City *backgroundCity = _weatherModel.city;
-            if([prefs boolForKey:@"customConditionIcon"]){
-                backgroundCity = [_weatherModel.city cityCopy];
+            if ([prefs boolForKey:@"customConditionIcon"] && backgroundCity) {
+                backgroundCity = [backgroundCity cityCopy];
                 backgroundCity.conditionCode = [prefs doubleForKey:@"weatherConditionsIcon"];
             }
-            [self.referenceView.background setCity:backgroundCity];
-            if(![prefs boolForKey:@"appScreenWeather"]){
-                self.gradientLayer.hidden = NO;
-                
-                self.gradientLayer = [self gradientFromWeatherGradient: self.referenceView.background.gradientLayer];
-                self.gradientLayer.frame = self.gradientView.frame;
-                self.gradientView.layer.sublayers = nil;
-                [self.gradientView.layer insertSublayer:self.gradientLayer atIndex:0];
+            if (backgroundCity) {
+                [self.referenceView.background setCity:backgroundCity];
+            }
+            if (![prefs boolForKey:@"appScreenWeather"]) {
+                CAGradientLayer *srcGrad = (CAGradientLayer *)self.referenceView.background.gradientLayer;
+                if (srcGrad) {
+                    if (self.gradientLayer) {
+                        [self.gradientLayer removeFromSuperlayer];
+                    }
+                    self.gradientLayer = [self gradientFromWeatherGradient:srcGrad];
+                    self.gradientLayer.frame = self.gradientView.bounds;
+                    [self.gradientView.layer insertSublayer:self.gradientLayer atIndex:0];
+                }
+                self.gradientView.hidden = NO;
                 self.referenceView.hidden = YES;
                 [[self.referenceView.background condition] pause];
             } else {
@@ -131,12 +151,13 @@ static WUIWeatherCondition* condition = nil;
                 self.referenceView.hidden = NO;
                 [[self.referenceView.background condition] resume];
             }
-        } else {
-            self.referenceView.backgroundColor = [UIColor grayColor];
         }
+        [self setNeedsLayout];
     }
 }
--(CAGradientLayer *) gradientFromWeatherGradient:(WUIGradientLayer *) weatherGradient{
+
+- (CAGradientLayer *)gradientFromWeatherGradient:(CAGradientLayer *)weatherGradient {
+    if (!weatherGradient) return nil;
     CAGradientLayer *gradientLayer = [CAGradientLayer layer];
     gradientLayer.colors = weatherGradient.colors;
     gradientLayer.locations = weatherGradient.locations;
@@ -146,26 +167,3 @@ static WUIWeatherCondition* condition = nil;
     return gradientLayer;
 }
 @end
-
-%ctor{
-    if([prefs boolForKey:@"kLWPEnabled"]){
-        %init();
-    }
-    //Thank you june
-    NSArray *args = [[NSClassFromString(@"NSProcessInfo") processInfo] arguments];
-	NSUInteger count = args.count;
-	if (count != 0) {
-		NSString *executablePath = args[0];
-		if (executablePath) {
-			NSString *processName = [executablePath lastPathComponent];
-			BOOL isSpringBoard = [processName isEqualToString:@"SpringBoard"];
-			BOOL isApplication = [executablePath rangeOfString:@"/Application"].location != NSNotFound;
-			if (isSpringBoard || isApplication) {
-				/* Weather */
-				dlopen("System/Library/PrivateFrameworks/Weather.framework/Weather", RTLD_NOW);
-				/* WeatherUI */
-    			dlopen("System/Library/PrivateFrameworks/WeatherUI.framework/WeatherUI", RTLD_NOW);
-			}
-		}
-    }
-}

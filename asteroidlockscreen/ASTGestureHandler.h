@@ -1,3 +1,4 @@
+#import <UIKit/UIKit.h>
 #import "ASTGestureDelegate.h"
 
 @interface ASTGestureHandler : NSObject <UIGestureRecognizerDelegate>

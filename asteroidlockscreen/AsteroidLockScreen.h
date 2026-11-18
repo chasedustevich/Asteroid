@@ -39,9 +39,15 @@
 @property (nonatomic, getter=isShowingMediaControls) BOOL showingMediaControls;
 @end 
 
+@interface CSCoverSheetViewController : SBDashBoardViewController
+@end
+
 @interface SBDashBoardView : UIView
 @property (nonatomic, retain) SBUIBackgroundView *backgroundView;
 @property (nonatomic, retain) UIVisualEffectView *blurEffectView;
+@end
+
+@interface CSCoverSheetView : SBDashBoardView
 @end
 
 //Other Interfaces 
@@ -74,6 +80,9 @@
 -(void) updateWeatherReveal;
 -(void) updateLockView;
 -(void) hideWeather;
+@end
+
+@interface CSMainPageView : SBDashBoardMainPageView
 @end
 
 @interface UIBlurEffect (lockweather)

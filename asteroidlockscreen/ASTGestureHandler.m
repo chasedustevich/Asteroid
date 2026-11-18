@@ -9,7 +9,7 @@
 @end
 
 @implementation ASTGestureHandler{
-    id <ASTGestureDelegate> delegate;
+    __weak id <ASTGestureDelegate> delegate;
     
     struct {
         BOOL showResetMenu:1;

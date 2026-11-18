@@ -1,6 +1,7 @@
 #import "LWPProvider.h"
 #import "ConditionImageType.h"
 #import "AWeatherModel.h"
+#import "ASTWeatherBackgroundView.h"
 #import <substrate.h>
 #import <CoreLocation/CoreLocation.h>
 #import "DGLogging.h"
@@ -18,7 +19,7 @@
 -(double)alpha;
 -(void)setAlpha:(double)arg1 ;
 -(void)setCondition:(long long)arg1;
-@end;
+@end
 
 @interface WUIGradientLayer : CAGradientLayer
 @property CGPoint position;

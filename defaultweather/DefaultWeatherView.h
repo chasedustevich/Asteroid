@@ -1,6 +1,6 @@
 #import "../source/LWPProvider.h"
 #import <AppSupport/CPDistributedMessagingCenter.h>
-#import <rocketbootstrap/rocketbootstrap.h>
+#import <dlfcn.h>
 
 @interface DefaultWeatherView : UIView
 @property (nonatomic, assign) NSUInteger index;

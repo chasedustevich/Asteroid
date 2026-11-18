@@ -3,7 +3,7 @@
 #import "../source/WeatherHeaders.h"
 #import "DefaultWeatherView.h"
 #import <AppSupport/CPDistributedMessagingCenter.h>
-#import <rocketbootstrap/rocketbootstrap.h>
+#import <dlfcn.h>
 
 @interface WAPageCollectionViewController
 @property (nonatomic, retain) NSArray *cities;

@@ -1,3 +1,5 @@
+#import <UIKit/UIKit.h>
+
 @protocol ASTGestureDelegate <NSObject>
 @required
 @property (nonatomic, retain) UIView *pieceForReset;
