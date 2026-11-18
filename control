@@ -2,8 +2,6 @@ Package: com.midnightchips.asteroid
 Name: Asteroid
 Depends: firmware (>= 15.0), mobilesubstrate, preferenceloader
 Version: 4.0.0
-Conflicts:
-Replaces:
 Priority: optional
 Architecture: iphoneos-arm64
 Description: System-Wide Weather (Modernized for iOS 15 & 16 rootless).
@@ -11,4 +9,3 @@ Maintainer: midnightchips & the casle
 Author: midnightchips & the casle
 Section: Tweaks
 dev: midnightchips & the casle
-Icon: 
